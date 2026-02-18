@@ -1,4 +1,4 @@
-package com.mizu20040814.accountingsoftware.controller;
+package com.mizu20040814.accountingsoftware.health;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

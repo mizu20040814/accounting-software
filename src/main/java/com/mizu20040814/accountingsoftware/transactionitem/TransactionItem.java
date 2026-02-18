@@ -1,4 +1,4 @@
-package com.mizu20040814.accountingsoftware.entity;
+package com.mizu20040814.accountingsoftware.transactionitem;
 
 import jakarta.persistence.*;
 import lombok.Getter;

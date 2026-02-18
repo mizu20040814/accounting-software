@@ -1,4 +1,4 @@
-package com.mizu20040814.accountingsoftware.entity;
+package com.mizu20040814.accountingsoftware.transaction;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -8,29 +8,24 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "products")
+@Table(name = "transactions")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Product {
+public class Transaction {
 
     @Id
     @GeneratedValue
     private Long id;
 
-    @Column(nullable = false,length = 100)
-    private String name;
+    @Column(nullable = false)
+    private int totalAmount;
 
     @Column(nullable = false)
-    private int price;
+    private int receivedAmount;
 
     @Column(nullable = false)
-    private int stock = 0;
-
-    @Column(nullable = false)
-    private boolean enabled = true;
+    private int changeAmount;
 
     private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 }
