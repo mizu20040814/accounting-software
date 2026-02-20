@@ -1,0 +1,528 @@
+openapi: 3.0.3
+info:
+    title: 学園祭会計アプリ API
+    description: 学園祭の出店で使用する会計・在庫管理アプリのAPI仕様書
+    version: 1.1.0
+
+servers:
+    - url: http://localhost:8080
+      description: ローカル開発サーバー
+
+tags:
+    - name: health
+      description: ヘルスチェック
+    - name: products
+      description: 商品管理
+    - name: transactions
+      description: 会計・取引管理
+    - name: reports
+      description: 売上レポート
+
+paths:
+    # ==================== ヘルスチェック ====================
+
+    /health:
+        get:
+            tags: [health]
+            summary: ヘルスチェック
+            description: サーバーの稼働状態を確認する
+            operationId: healthCheck
+            responses:
+                "200":
+                    description: サーバー稼働中
+                    content:
+                        text/plain:
+                            schema:
+                                type: string
+                                example: "Health Check OK"
+
+    # ==================== 商品管理 ====================
+
+    /api/products:
+        get:
+            tags: [products]
+            summary: 商品一覧取得
+            description: 全商品をエンティティとして一覧取得する
+            operationId: getAllProducts
+            responses:
+                "200":
+                    description: 商品一覧
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/Product"
+
+        post:
+            tags: [products]
+            summary: 商品登録
+            description: 新しい商品を登録する。商品名・価格・在庫数のバリデーションあり。
+            operationId: createProduct
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/ProductRequest"
+            responses:
+                "200":
+                    description: 登録された商品
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ProductResponse"
+                "400":
+                    description: |
+                        バリデーションエラー
+                        - 商品名が空
+                        - 商品名が100文字超
+                        - 価格が0未満
+                        - 在庫数が0未満
+
+    /api/products/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              description: 商品ID
+              schema:
+                  type: integer
+                  format: int64
+
+        get:
+            tags: [products]
+            summary: 商品詳細取得
+            description: 指定IDの商品をエンティティとして取得する
+            operationId: getProductById
+            responses:
+                "200":
+                    description: 商品詳細
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Product"
+                "400":
+                    description: 指定されたIDの商品が見つからない
+
+        put:
+            tags: [products]
+            summary: 商品更新
+            description: 指定IDの商品情報を更新する。バリデーションあり。
+            operationId: updateProduct
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/ProductUpdateRequest"
+            responses:
+                "200":
+                    description: 更新された商品
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ProductResponse"
+                "400":
+                    description: |
+                        バリデーションエラー
+                        - 商品名が空
+                        - 商品名が100文字超
+                        - 価格が0未満
+                        - 在庫数が0未満
+                "500":
+                    description: 商品が見つからない
+
+        delete:
+            tags: [products]
+            summary: 商品論理削除
+            description: 指定IDの商品の enabled を false に設定する（物理削除ではなく論理削除）
+            operationId: deleteProduct
+            responses:
+                "204":
+                    description: 削除成功（レスポンスボディなし）
+                "500":
+                    description: 商品が見つからない
+
+    # ==================== 会計・取引管理 ====================
+
+    /api/transactions:
+        get:
+            tags: [transactions]
+            summary: 取引一覧取得
+            description: 全取引をアイテム情報付きで一覧取得する
+            operationId: getAllTransactions
+            responses:
+                "200":
+                    description: 取引一覧
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/TransactionResponse"
+
+        post:
+            tags: [transactions]
+            summary: 会計実行
+            description: |
+                在庫チェック → 合計金額計算 → お釣り計算 → Transaction/TransactionItem 作成 → 在庫減算
+                を一連のフローで実行する。
+            operationId: createTransaction
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/TransactionRequest"
+            responses:
+                "200":
+                    description: 会計結果
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/TransactionResponse"
+                "400":
+                    description: 在庫不足エラー
+                "500":
+                    description: 存在しない商品IDが指定された
+
+    /api/transactions/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              description: 取引ID
+              schema:
+                  type: integer
+                  format: int64
+
+        get:
+            tags: [transactions]
+            summary: 取引詳細取得
+            description: 指定IDの取引をアイテム情報付きで取得する
+            operationId: getTransactionById
+            responses:
+                "200":
+                    description: 取引詳細
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/TransactionResponse"
+                "400":
+                    description: 指定されたIDの取引が見つからない
+
+    # ==================== 売上レポート ====================
+
+    /api/reports/summary:
+        get:
+            tags: [reports]
+            summary: 売上サマリー取得
+            description: 指定日（省略時は当日）の総売上金額と取引件数を取得する
+            operationId: getSalesSummary
+            parameters:
+                - $ref: "#/components/parameters/DateParam"
+            responses:
+                "200":
+                    description: 売上サマリー
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/SummaryResponse"
+
+    /api/reports/by-product:
+        get:
+            tags: [reports]
+            summary: 商品別売上集計
+            description: 指定日（省略時は当日）の商品別売上数量・金額を取得する
+            operationId: getSalesByProduct
+            parameters:
+                - $ref: "#/components/parameters/DateParam"
+            responses:
+                "200":
+                    description: 商品別集計
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/ProductSalesResponse"
+
+    /api/reports/by-hour:
+        get:
+            tags: [reports]
+            summary: 時間帯別売上集計
+            description: 指定日（省略時は当日）の時間帯別取引件数・売上金額を取得する
+            operationId: getSalesByHour
+            parameters:
+                - $ref: "#/components/parameters/DateParam"
+            responses:
+                "200":
+                    description: 時間帯別集計
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/HourlySalesResponse"
+
+# ==================== 共通定義 ====================
+
+components:
+    parameters:
+        DateParam:
+            name: date
+            in: query
+            required: false
+            description: 集計対象日（省略時は当日）
+            schema:
+                type: string
+                format: date
+                example: "2024-11-01"
+
+    schemas:
+        # ---------- 商品 ----------
+
+        ProductRequest:
+            type: object
+            description: 商品登録リクエスト
+            required: [name, price, stock]
+            properties:
+                name:
+                    type: string
+                    maxLength: 100
+                    description: 商品名
+                    example: "たこ焼き"
+                price:
+                    type: integer
+                    minimum: 0
+                    description: 価格（円）
+                    example: 200
+                stock:
+                    type: integer
+                    minimum: 0
+                    description: 在庫数
+                    example: 50
+
+        ProductUpdateRequest:
+            type: object
+            description: 商品更新リクエスト
+            required: [name, price, stock, enabled]
+            properties:
+                name:
+                    type: string
+                    maxLength: 100
+                    description: 商品名
+                    example: "たこ焼き"
+                price:
+                    type: integer
+                    minimum: 0
+                    description: 価格（円）
+                    example: 250
+                stock:
+                    type: integer
+                    minimum: 0
+                    description: 在庫数
+                    example: 30
+                enabled:
+                    type: boolean
+                    description: 有効フラグ
+                    example: true
+
+        ProductResponse:
+            type: object
+            description: 商品レスポンス（DTO）
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    description: 商品ID
+                    example: 1
+                name:
+                    type: string
+                    description: 商品名
+                    example: "たこ焼き"
+                price:
+                    type: integer
+                    description: 価格（円）
+                    example: 200
+                stock:
+                    type: integer
+                    description: 在庫数
+                    example: 50
+                enabled:
+                    type: boolean
+                    description: 有効フラグ
+                    example: true
+
+        Product:
+            type: object
+            description: 商品エンティティ（GET一覧・GET詳細で直接返却される）
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    description: 商品ID
+                    example: 1
+                name:
+                    type: string
+                    description: 商品名
+                    example: "たこ焼き"
+                price:
+                    type: integer
+                    description: 価格（円）
+                    example: 200
+                stock:
+                    type: integer
+                    description: 在庫数
+                    example: 50
+                enabled:
+                    type: boolean
+                    description: 有効フラグ
+                    example: true
+                createdAt:
+                    type: string
+                    format: date-time
+                    description: 作成日時
+                    example: "2024-11-01T10:00:00"
+                updatedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: 更新日時
+                    example: "2024-11-01T12:00:00"
+
+        # ---------- 取引 ----------
+
+        TransactionRequest:
+            type: object
+            description: 会計リクエスト
+            required: [receivedAmount, items]
+            properties:
+                receivedAmount:
+                    type: integer
+                    description: 預かり金額（円）
+                    example: 1000
+                items:
+                    type: array
+                    description: 購入アイテム一覧
+                    items:
+                        $ref: "#/components/schemas/TransactionItemRequest"
+
+        TransactionItemRequest:
+            type: object
+            description: 購入アイテムリクエスト
+            required: [productId, quantity]
+            properties:
+                productId:
+                    type: integer
+                    format: int64
+                    description: 商品ID
+                    example: 1
+                quantity:
+                    type: integer
+                    description: 購入数量
+                    example: 2
+
+        TransactionResponse:
+            type: object
+            description: 取引レスポンス（アイテム情報含む）
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    description: 取引ID
+                    example: 1
+                totalAmount:
+                    type: integer
+                    description: 合計金額（円）
+                    example: 700
+                receivedAmount:
+                    type: integer
+                    description: 預かり金額（円）
+                    example: 1000
+                changeAmount:
+                    type: integer
+                    description: お釣り（円）
+                    example: 300
+                createdAt:
+                    type: string
+                    format: date-time
+                    description: 取引日時
+                    example: "2024-11-01T12:30:00"
+                items:
+                    type: array
+                    description: 購入アイテム一覧
+                    items:
+                        $ref: "#/components/schemas/TransactionItemResponse"
+
+        TransactionItemResponse:
+            type: object
+            description: 購入アイテムレスポンス
+            properties:
+                productName:
+                    type: string
+                    description: 商品名
+                    example: "たこ焼き"
+                unitPrice:
+                    type: integer
+                    description: 単価（円）
+                    example: 200
+                quantity:
+                    type: integer
+                    description: 数量
+                    example: 2
+
+        # ---------- レポート ----------
+
+        SummaryResponse:
+            type: object
+            description: 売上サマリーレスポンス
+            properties:
+                date:
+                    type: string
+                    format: date
+                    description: 集計対象日
+                    example: "2024-11-01"
+                totalAmount:
+                    type: integer
+                    description: 総売上金額（円）
+                    example: 15000
+                transactionCount:
+                    type: integer
+                    description: 取引件数
+                    example: 32
+
+        ProductSalesResponse:
+            type: object
+            description: 商品別売上レスポンス
+            properties:
+                productName:
+                    type: string
+                    description: 商品名
+                    example: "たこ焼き"
+                quantitySold:
+                    type: integer
+                    description: 販売数量
+                    example: 40
+                totalAmount:
+                    type: integer
+                    description: 売上金額（円）
+                    example: 8000
+
+        HourlySalesResponse:
+            type: object
+            description: 時間帯別売上レスポンス
+            properties:
+                hour:
+                    type: integer
+                    description: 時間帯（0-23）
+                    example: 12
+                transactionCount:
+                    type: integer
+                    description: 取引件数
+                    example: 15
+                totalAmount:
+                    type: integer
+                    description: 売上金額（円）
+                    example: 7500
