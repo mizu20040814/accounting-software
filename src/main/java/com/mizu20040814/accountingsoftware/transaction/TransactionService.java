@@ -4,6 +4,7 @@ import com.mizu20040814.accountingsoftware.product.Product;
 import com.mizu20040814.accountingsoftware.product.ProductRepository;
 import com.mizu20040814.accountingsoftware.transaction.dto.TransactionItemRequest;
 import com.mizu20040814.accountingsoftware.transaction.dto.TransactionRequest;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -30,6 +31,7 @@ public class TransactionService {
                 .orElseThrow(() -> new IllegalArgumentException("指定されたIDの取引が見つかりません: " + id));
     }
 
+    @Transactional
     public Transaction create(TransactionRequest request){
 
         int totalAmount = 0;
