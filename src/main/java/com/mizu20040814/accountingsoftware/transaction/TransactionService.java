@@ -37,7 +37,9 @@ public class TransactionService {
         int totalAmount = 0;
         final List<TransactionItemRequest> itemsRequest = request.getItems();
         List<TransactionItem> newItems = new ArrayList<>();
+        List<Product> productsToUpdate = new ArrayList<>();
 
+        // ==================== 検証フェーズ ====================
         for(TransactionItemRequest item : itemsRequest){
             final Long productId = item.getProductId();
             final int itemQuantity = item.getQuantity();
@@ -62,8 +64,22 @@ public class TransactionService {
             newItem.setQuantity(itemQuantity);
             newItems.add(newItem);
 
-            // 在庫を減算
-            product.setStock(product.getStock() - itemQuantity);
+            productsToUpdate.add(product);
+        }
+
+        // 預かり金不足チェック
+        if (request.getReceivedAmount() < totalAmount) {
+            throw new IllegalArgumentException(
+                    "預かり金が不足しています（合計: " + totalAmount
+                            + "円, 預かり: " + request.getReceivedAmount() + "円）");
+        }
+
+        // ==================== 更新フェーズ ====================
+        // 在庫を減算
+        for (int i = 0; i < productsToUpdate.size(); i++) {
+            Product product = productsToUpdate.get(i);
+            int quantity = itemsRequest.get(i).getQuantity();
+            product.setStock(product.getStock() - quantity);
             productRepository.save(product);
         }
 
