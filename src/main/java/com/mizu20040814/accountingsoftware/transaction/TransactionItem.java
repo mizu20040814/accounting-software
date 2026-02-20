@@ -1,12 +1,13 @@
 package com.mizu20040814.accountingsoftware.transaction;
 
+import com.mizu20040814.accountingsoftware.product.Product;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "transaction-items")
+@Table(name = "transaction_items")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,12 +17,15 @@ public class TransactionItem {
     @GeneratedValue
     private Long id;
 
-    @Column(nullable = false)
-    private Long transactionId;
+    @ManyToOne
+    @JoinColumn(name = "transaction_id", nullable = false)
+    private Transaction transaction;
 
-    private Long productId;
+    @ManyToOne
+    @JoinColumn(name = "product_id")
+    private Product product;
 
-    @Column(nullable = false,length = 100)
+    @Column(nullable = false, length = 100)
     private String productName;
 
     @Column(nullable = false)
